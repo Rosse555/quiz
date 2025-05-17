@@ -2,53 +2,58 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-# --- Configuración de la app ---
 st.set_page_config(layout="centered")
-st.title("🧮 Simulación del Descenso del Gradiente con Deslizador")
+st.title("🔽 Descenso del Gradiente en 2D con Curvas de Nivel")
 
-# --- Función objetivo y derivada ---
-def f(x):
-    return x**2
+# --- Función objetivo y gradiente ---
+def f(x, y):
+    return x**2 + y**2
 
-def grad_f(x):
-    return 2*x
+def grad_f(x, y):
+    return np.array([2*x, 2*y])
 
-# --- Parámetros de entrada ---
-x0 = st.number_input("🔹 Valor inicial (x₀)", value=5.0)
+# --- Entradas del usuario ---
+x0 = st.number_input("🔹 Valor inicial x₀", value=3.0)
+y0 = st.number_input("🔹 Valor inicial y₀", value=3.0)
 lr = st.slider("🔸 Tasa de aprendizaje", 0.01, 1.0, 0.1)
 max_iters = 50
-iteraciones = st.slider("🎚️ Número de iteraciones", 0, max_iters, 10)
+iteraciones = st.slider("🎚️ Número de iteraciones", 1, max_iters, 10)
 
-# --- Ejecutar el algoritmo hasta el número seleccionado ---
-x_vals = [x0]
-for i in range(iteraciones):
-    x_actual = x_vals[-1]
-    grad = grad_f(x_actual)
-    x_nuevo = x_actual - lr * grad
-    x_vals.append(x_nuevo)
+# --- Ejecutar descenso del gradiente ---
+points = [(x0, y0)]
+x, y = x0, y0
 
-y_vals = [f(x) for x in x_vals]
+for _ in range(iteraciones):
+    grad = grad_f(x, y)
+    x = x - lr * grad[0]
+    y = y - lr * grad[1]
+    points.append((x, y))
 
-# --- Graficar ---
-x_range = np.linspace(-10, 10, 400)
-y_range = f(x_range)
+# --- Preparar curva de nivel ---
+x_vals = np.linspace(-5, 5, 400)
+y_vals = np.linspace(-5, 5, 400)
+X, Y = np.meshgrid(x_vals, y_vals)
+Z = f(X, Y)
 
+# --- Graficar curvas de nivel ---
 fig, ax = plt.subplots()
-ax.plot(x_range, y_range, label='f(x) = x²', color='blue')
-ax.plot(x_vals, y_vals, 'ro-', label='Descenso del gradiente')
+contours = ax.contour(X, Y, Z, levels=20, cmap='viridis')
+ax.clabel(contours, inline=True, fontsize=8)
 
-for i, (x_i, y_i) in enumerate(zip(x_vals, y_vals)):
-    ax.annotate(f"{i}", (x_i, y_i), textcoords="offset points", xytext=(5,5), fontsize=8)
-
-ax.set_title(f"Descenso del Gradiente - Iteraciones: {iteraciones}")
+# --- Dibujar trayectoria del descenso ---
+traj_x = [pt[0] for pt in points]
+traj_y = [pt[1] for pt in points]
+ax.plot(traj_x, traj_y, 'ro-', label="Trayectoria del descenso")
+ax.set_title(f"Descenso del Gradiente con Curvas de Nivel ({iteraciones} iteraciones)")
 ax.set_xlabel("x")
-ax.set_ylabel("f(x)")
-ax.grid(True)
+ax.set_ylabel("y")
 ax.legend()
+ax.grid(True)
 
 st.pyplot(fig)
 
-# --- Tabla de resultados ---
-st.subheader("📋 Resultados por Iteración")
-for i, (x_i, y_i) in enumerate(zip(x_vals, y_vals)):
-    st.write(f"Iteración {i}: x = {x_i:.4f}, f(x) = {y_i:.4f}")
+# --- Mostrar valores ---
+st.subheader("📋 Coordenadas por Iteración")
+for i, (x_i, y_i) in enumerate(points):
+    z_i = f(x_i, y_i)
+    st.write(f"Iteración {i}: x = {x_i:.4f}, y = {y_i:.4f}, f(x, y) = {z_i:.4f}")
