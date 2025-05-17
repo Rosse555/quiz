@@ -2,65 +2,53 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
+# --- Configuración de la app ---
 st.set_page_config(layout="centered")
-st.title("🎬 Simulación del Descenso del Gradiente Paso a Paso")
+st.title("🧮 Simulación del Descenso del Gradiente con Deslizador")
 
-# --- Función objetivo y su derivada ---
+# --- Función objetivo y derivada ---
 def f(x):
     return x**2
 
 def grad_f(x):
     return 2*x
 
-# --- Inicialización en la sesión ---
-if 'x_vals' not in st.session_state:
-    st.session_state.x_vals = []
-    st.session_state.iter = 0
-
 # --- Parámetros de entrada ---
-x0 = st.number_input("Valor inicial (x₀)", value=5.0)
-lr = st.slider("Tasa de aprendizaje (learning rate)", 0.01, 1.0, 0.1)
+x0 = st.number_input("🔹 Valor inicial (x₀)", value=5.0)
+lr = st.slider("🔸 Tasa de aprendizaje", 0.01, 1.0, 0.1)
+max_iters = 50
+iteraciones = st.slider("🎚️ Número de iteraciones", 0, max_iters, 10)
 
-# --- Inicializar (botón reset) ---
-if st.button("🔁 Reiniciar"):
-    st.session_state.x_vals = [x0]
-    st.session_state.iter = 0
-
-# --- Avanzar una iteración (botón Play) ---
-if st.button("▶️ Play"):
-    if len(st.session_state.x_vals) == 0:
-        st.session_state.x_vals.append(x0)
-
-    x_actual = st.session_state.x_vals[-1]
+# --- Ejecutar el algoritmo hasta el número seleccionado ---
+x_vals = [x0]
+for i in range(iteraciones):
+    x_actual = x_vals[-1]
     grad = grad_f(x_actual)
     x_nuevo = x_actual - lr * grad
-    st.session_state.x_vals.append(x_nuevo)
-    st.session_state.iter += 1
+    x_vals.append(x_nuevo)
 
-# --- Obtener valores actuales ---
-x_vals = st.session_state.x_vals
 y_vals = [f(x) for x in x_vals]
 
-# --- Gráfico ---
+# --- Graficar ---
 x_range = np.linspace(-10, 10, 400)
 y_range = f(x_range)
 
 fig, ax = plt.subplots()
 ax.plot(x_range, y_range, label='f(x) = x²', color='blue')
-if len(x_vals) > 1:
-    ax.plot(x_vals, y_vals, 'ro-', label='Trayectoria')
-    for i, (xi, yi) in enumerate(zip(x_vals, y_vals)):
-        ax.annotate(f"{i}", (xi, yi), textcoords="offset points", xytext=(5,5), ha='center')
+ax.plot(x_vals, y_vals, 'ro-', label='Descenso del gradiente')
 
-ax.set_title(f"Descenso del Gradiente - Iteración {st.session_state.iter}")
+for i, (x_i, y_i) in enumerate(zip(x_vals, y_vals)):
+    ax.annotate(f"{i}", (x_i, y_i), textcoords="offset points", xytext=(5,5), fontsize=8)
+
+ax.set_title(f"Descenso del Gradiente - Iteraciones: {iteraciones}")
 ax.set_xlabel("x")
 ax.set_ylabel("f(x)")
-ax.legend()
 ax.grid(True)
+ax.legend()
 
 st.pyplot(fig)
 
-# --- Mostrar tabla de iteraciones ---
-st.subheader("📋 Valores por iteración")
-for i, (x, y) in enumerate(zip(x_vals, y_vals)):
-    st.write(f"Iteración {i}: x = {x:.4f}, f(x) = {y:.4f}")
+# --- Tabla de resultados ---
+st.subheader("📋 Resultados por Iteración")
+for i, (x_i, y_i) in enumerate(zip(x_vals, y_vals)):
+    st.write(f"Iteración {i}: x = {x_i:.4f}, f(x) = {y_i:.4f}")
