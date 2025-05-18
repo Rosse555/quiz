@@ -96,7 +96,7 @@ fig.update_layout(
         borderwidth=1
     )
 )
-)
+
 
 # --- Mostrar gráfica ---
 st.plotly_chart(fig, use_container_width=False)
