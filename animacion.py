@@ -1,107 +1,69 @@
 import streamlit as st
 import numpy as np
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
-st.set_page_config(layout="wide")
-st.title("🌀 Descenso del Gradiente 3D Paso a Paso")
+st.set_page_config(layout="centered")
+st.title("📐 Simulación: Suma de Riemann")
 
-# --- Función objetivo y su gradiente ---
-def f(x, y): return x**2 + y**2
-def grad_f(x, y): return np.array([2*x, 2*y])
+# --- Funciones disponibles ---
+def f1(x): return x**2
+def f2(x): return np.sin(x)
+def f3(x): return np.exp(-x**2)
+def f4(x): return np.log(x + 1.1)  # evitar log(0)
+def f5(x): return np.sqrt(x)
 
-# --- Entrada de parámetros ---
-x0 = st.number_input("🔹 x₀", value=3.0)
-y0 = st.number_input("🔹 y₀", value=3.0)
-lr = st.slider("🔸 Learning rate", 0.01, 1.0, 0.1)
-max_iters = st.slider("🎚️ Iteraciones máximas", 1, 50, 10)
+funciones = {
+    "x²": f1,
+    "sin(x)": f2,
+    "e^(-x²)": f3,
+    "ln(x + 1.1)": f4,
+    "√x": f5
+}
 
-# --- Inicializar estado de la simulación ---
-if 'points' not in st.session_state:
-    st.session_state.points = [(x0, y0)]
-    st.session_state.iter = 0
-    st.session_state.x0 = x0
-    st.session_state.y0 = y0
+# --- Entradas del usuario ---
+funcion_sel = st.selectbox("📌 Elige la función", list(funciones.keys()))
+f = funciones[funcion_sel]
 
-# --- Reiniciar simulación si cambian los valores iniciales ---
-if st.session_state.x0 != x0 or st.session_state.y0 != y0:
-    st.session_state.points = [(x0, y0)]
-    st.session_state.iter = 0
-    st.session_state.x0 = x0
-    st.session_state.y0 = y0
+a = st.number_input("🔹 Límite inferior (a)", value=0.0)
+b = st.number_input("🔹 Límite superior (b)", value=5.0)
+n = st.slider("🔸 Número de subintervalos (n)", 1, 100, 10)
+tipo = st.radio("📏 Tipo de suma de Riemann", ("Izquierda", "Derecha", "Punto medio"))
 
-# --- Botón para avanzar paso a paso ---
-if st.button("▶️ Siguiente iteración"):
-    if st.session_state.iter < max_iters:
-        x, y = st.session_state.points[-1]
-        grad = grad_f(x, y)
-        x_new = x - lr * grad[0]
-        y_new = y - lr * grad[1]
-        st.session_state.points.append((x_new, y_new))
-        st.session_state.iter += 1
+# --- Construcción de los rectángulos ---
+x = np.linspace(a, b, 1000)
+y = f(x)
 
-# --- Extraer puntos de trayectoria ---
-traj_x = np.array([p[0] for p in st.session_state.points])
-traj_y = np.array([p[1] for p in st.session_state.points])
-traj_z = np.array([f(x, y) for x, y in st.session_state.points])
+dx = (b - a) / n
 
-# --- Superficie de la función ---
-X = np.linspace(-5, 5, 100)
-Y = np.linspace(-5, 5, 100)
-X, Y = np.meshgrid(X, Y)
-Z = f(X, Y)
+if tipo == "Izquierda":
+    x_rect = np.linspace(a, b - dx, n)
+    heights = f(x_rect)
+elif tipo == "Derecha":
+    x_rect = np.linspace(a + dx, b, n)
+    heights = f(x_rect)
+else:  # Punto medio
+    x_rect = np.linspace(a + dx/2, b - dx/2, n)
+    heights = f(x_rect)
 
-fig = go.Figure()
+areas = heights * dx
+area_total = np.sum(areas)
 
-# Superficie
-fig.add_trace(go.Surface(z=Z, x=X, y=Y, colorscale="Viridis", opacity=0.7))
+# --- Visualización ---
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(x, y, label=f"f(x) = {funcion_sel}", color='blue')
 
-# Trayectoria
-fig.add_trace(go.Scatter3d(
-    x=traj_x, y=traj_y, z=traj_z,
-    mode='lines+markers',
-    marker=dict(size=5, color='red'),
-    line=dict(color='red', width=4),
-    name="Descenso"
-))
+for xi, hi in zip(x_rect, heights):
+    ax.add_patch(plt.Rectangle((xi - (dx if tipo == 'Derecha' else 0 if tipo == 'Izquierda' else dx/2), 0),
+                               dx, hi, alpha=0.4, color='orange'))
 
-# Puntos inicial y final
-fig.add_trace(go.Scatter3d(
-    x=[traj_x[0]], y=[traj_y[0]], z=[traj_z[0]],
-    mode='markers',
-    marker=dict(size=8, color='orange'),
-    name="Inicio"
-))
-fig.add_trace(go.Scatter3d(
-    x=[traj_x[-1]], y=[traj_y[-1]], z=[traj_z[-1]],
-    mode='markers',
-    marker=dict(size=8, color='green'),
-    name="Último punto"
-))
+ax.set_title(f"Suma de Riemann ({tipo.lower()}) con n = {n}")
+ax.set_xlabel("x")
+ax.set_ylabel("f(x)")
+ax.legend()
+ax.grid(True)
 
-# Configuración
-fig.update_layout(
-    title=f"Iteración: {st.session_state.iter}",
-    width=1000,
-    height=700,
-    scene=dict(
-        xaxis_title='x',
-        yaxis_title='y',
-        zaxis_title='f(x, y)'
-    ),
-    legend=dict(
-        x=0.8,  # horizontal (0 a 1)
-        y=0.95, # vertical (0 a 1)
-        bgcolor='rgba(255,255,255,0.7)',
-        bordercolor='black',
-        borderwidth=1
-    )
-)
+st.pyplot(fig)
 
-
-# --- Mostrar gráfica ---
-st.plotly_chart(fig, use_container_width=False)
-
-# --- Mostrar resultados ---
-st.subheader("📋 Valores por iteración")
-for i, (x_i, y_i, z_i) in enumerate(zip(traj_x, traj_y, traj_z)):
-    st.write(f"Iteración {i}: x = {x_i:.4f}, y = {y_i:.4f}, f(x, y) = {z_i:.4f}")
+# --- Resultado de la suma ---
+st.subheader("📊 Resultado")
+st.write(f"Área aproximada bajo la curva en [{a}, {b}] usando suma de Riemann ({tipo.lower()}): **{area_total:.6f}**")
