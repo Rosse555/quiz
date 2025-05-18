@@ -1,12 +1,12 @@
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
+from plotly.subplots import make_subplots
 
 st.set_page_config(layout="wide")
-st.title("📊 Superficies Cuádricas y Curvas de Nivel (Cortes en 3D + 2D)")
+st.title("🧠 Visualización de Superficies Cuádricas con Cortes en Plotly")
 
-# --- Definición de funciones cuádricas ---
+# --- Funciones cuádricas ---
 superficies = {
     "Paraboloide elíptico": {
         "func": lambda x, y: x**2 + y**2,
@@ -34,88 +34,65 @@ superficies = {
     }
 }
 
-# --- Selección de superficie y plano ---
-col1, col2 = st.columns(2)
-with col1:
-    tipo = st.selectbox("🧠 Superficie cuádrica", list(superficies.keys()))
-    plano = st.radio("📏 Plano para curva de nivel", ["z = 0", "x = 0", "y = 0"])
-    st.latex(superficies[tipo]["latex"])
+# --- Interfaz usuario ---
+tipo = st.selectbox("📌 Elige una superficie cuádrica", list(superficies.keys()))
+plano = st.radio("📏 Plano para visualizar curva de nivel", ["z = 0", "x = 0", "y = 0"])
+st.latex(superficies[tipo]["latex"])
+f = superficies[tipo]["func"]
 
-z_func = superficies[tipo]["func"]
-
-# --- Malla para la superficie ---
+# --- Datos de malla ---
 x_vals = np.linspace(-5, 5, 100)
 y_vals = np.linspace(-5, 5, 100)
 X, Y = np.meshgrid(x_vals, y_vals)
-Z = z_func(X, Y)
+Z = f(X, Y)
 
-# --- Gráfico 3D ---
-fig3d = go.Figure()
-fig3d.add_trace(go.Surface(z=Z, x=X, y=Y, colorscale="Viridis", opacity=0.8, name="Superficie"))
-
-# Corte 3D según el plano
-if plano == "x = 0":
-    y_cut = y_vals
-    z_cut = z_func(0, y_cut)
-    fig3d.add_trace(go.Scatter3d(
-        x=[0]*len(y_cut), y=y_cut, z=z_cut,
-        mode='lines', line=dict(color='red', width=5), name="Corte x=0"
-    ))
-elif plano == "y = 0":
-    x_cut = x_vals
-    z_cut = z_func(x_cut, 0)
-    fig3d.add_trace(go.Scatter3d(
-        x=x_cut, y=[0]*len(x_cut), z=z_cut,
-        mode='lines', line=dict(color='orange', width=5), name="Corte y=0"
-    ))
-elif plano == "z = 0":
-    fig3d.add_trace(go.Surface(
-        z=Z, x=X, y=Y,
-        showscale=False,
-        colorscale="Greys",
-        opacity=0.3,
-        contours={"z": {"show": True, "start": np.min(Z), "end": np.max(Z), "size": 0.5}}
-    ))
-
-fig3d.update_layout(
-    title=f"Superficie: {tipo} con corte en {plano}",
-    width=700, height=700,
-    scene=dict(
-        xaxis_title="x",
-        yaxis_title="y",
-        zaxis_title="z"
-    )
+# --- Subgráficas (una 3D, una 2D en Plotly) ---
+fig = make_subplots(
+    rows=1, cols=2,
+    specs=[[{"type": "surface"}, {"type": "xy"}]],
+    column_widths=[0.6, 0.4],
+    subplot_titles=("Superficie 3D", f"Corte en plano {plano}")
 )
 
-# --- Mostrar curva de nivel 2D ---
-with col2:
-    st.markdown("### 📈 Curva de nivel 2D")
-    fig2d, ax = plt.subplots(figsize=(5, 5))
+# --- Superficie 3D ---
+fig.add_trace(
+    go.Surface(z=Z, x=X, y=Y, colorscale="Viridis", showscale=True, name="Superficie"),
+    row=1, col=1
+)
 
-    if plano == "x = 0":
-        y_cut = y_vals
-        z_cut = z_func(0, y_cut)
-        ax.plot(y_cut, z_cut, color='red')
-        ax.set_xlabel("y")
-        ax.set_ylabel("z")
-        ax.set_title("Corte en x = 0")
+# --- Curva en 3D y gráfico 2D ---
+if plano == "x = 0":
+    y_cut = y_vals
+    z_cut = f(0, y_cut)
+    # Agregar línea roja en 3D
+    fig.add_trace(go.Scatter3d(x=[0]*len(y_cut), y=y_cut, z=z_cut, mode='lines', line=dict(color='red', width=5), name="x = 0"), row=1, col=1)
+    # Agregar curva 2D (z vs y)
+    fig.add_trace(go.Scatter(x=y_cut, y=z_cut, mode='lines+markers', line=dict(color='red'), name="z vs y"), row=1, col=2)
+    fig.update_xaxes(title="y", row=1, col=2)
+    fig.update_yaxes(title="z", row=1, col=2)
 
-    elif plano == "y = 0":
-        x_cut = x_vals
-        z_cut = z_func(x_cut, 0)
-        ax.plot(x_cut, z_cut, color='orange')
-        ax.set_xlabel("x")
-        ax.set_ylabel("z")
-        ax.set_title("Corte en y = 0")
+elif plano == "y = 0":
+    x_cut = x_vals
+    z_cut = f(x_cut, 0)
+    fig.add_trace(go.Scatter3d(x=x_cut, y=[0]*len(x_cut), z=z_cut, mode='lines', line=dict(color='orange', width=5), name="y = 0"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_cut, y=z_cut, mode='lines+markers', line=dict(color='orange'), name="z vs x"), row=1, col=2)
+    fig.update_xaxes(title="x", row=1, col=2)
+    fig.update_yaxes(title="z", row=1, col=2)
 
-    elif plano == "z = 0":
-        cp = ax.contour(X, Y, Z, levels=10, colors='black')
-        ax.clabel(cp, inline=True, fontsize=8)
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_title("Curvas de nivel z = c")
+elif plano == "z = 0":
+    # Agregar curvas de nivel 2D
+    contour = go.Contour(x=x_vals, y=y_vals, z=Z, colorscale="Hot", contours=dict(start=np.min(Z), end=np.max(Z), size=1))
+    fig.add_trace(contour, row=1, col=2)
+    fig.update_xaxes(title="x", row=1, col=2)
+    fig.update_yaxes(title="y", row=1, col=2)
 
-    st.pyplot(fig2d)
+# --- Layout final ---
+fig.update_layout(
+    height=700,
+    width=1200,
+    title_text=f"Visualización de {tipo} con corte en {plano}",
+    scene=dict(xaxis_title="x", yaxis_title="y", zaxis_title="z"),
+)
 
-# --- Mostrar gráfico 3D completo ---
-st.plotly_chart(fig3d, use_container_width=False)
+# --- Mostrar en Streamlit ---
+st.plotly_chart(fig, use_container_width=False)
