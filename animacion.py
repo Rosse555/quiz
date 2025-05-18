@@ -1,81 +1,81 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
-st.set_page_config(layout="centered")
-st.title("📐 Simulación: Suma de Riemann")
+st.set_page_config(layout="wide")
+st.title("📊 Visualización de Superficies Cuádricas y Curvas de Nivel")
 
-# --- Definir funciones y fórmulas en LaTeX ---
-funciones = {
-    "x²": {
-        "func": lambda x: x**2,
-        "latex": r"f(x) = x^2"
+# --- Definición de superficies cuádricas ---
+superficies = {
+    "Paraboloide elíptico": {
+        "func": lambda x, y: x**2 + y**2,
+        "latex": r"z = x^2 + y^2"
     },
-    "sin(x)": {
-        "func": lambda x: np.sin(x),
-        "latex": r"f(x) = \sin(x)"
+    "Paraboloide hiperbólico": {
+        "func": lambda x, y: x**2 - y**2,
+        "latex": r"z = x^2 - y^2"
     },
-    "e^(-x²)": {
-        "func": lambda x: np.exp(-x**2),
-        "latex": r"f(x) = e^{-x^2}"
+    "Cono elíptico": {
+        "func": lambda x, y: np.sqrt(np.abs(x**2 + y**2)),  # evitar complejos
+        "latex": r"z = \sqrt{x^2 + y^2}"
     },
-    "ln(x + 1.1)": {
-        "func": lambda x: np.log(x + 1.1),  # evitar log(0)
-        "latex": r"f(x) = \ln(x + 1.1)"
+    "Hiperboloide de una hoja": {
+        "func": lambda x, y: np.sqrt(1 + x**2 + y**2),
+        "latex": r"z = \sqrt{1 + x^2 + y^2}"
     },
-    "√x": {
-        "func": lambda x: np.sqrt(x),
-        "latex": r"f(x) = \sqrt{x}"
+    "Hiperboloide de dos hojas": {
+        "func": lambda x, y: np.sqrt(np.abs(-1 + x**2 + y**2)),
+        "latex": r"z = \sqrt{-1 + x^2 + y^2}"
+    },
+    "Elipsoide": {
+        "func": lambda x, y: np.sqrt(np.clip(1 - x**2/4 - y**2/9, 0, None)),
+        "latex": r"z = \sqrt{1 - \frac{x^2}{4} - \frac{y^2}{9}}"
     }
 }
 
-# --- Menú de selección ---
-nombre_funcion = st.selectbox("📌 Elige la función", list(funciones.keys()))
-f = funciones[nombre_funcion]["func"]
-latex = funciones[nombre_funcion]["latex"]
+# --- Interfaz ---
+tipo = st.selectbox("🧠 Elige una superficie cuádrica", list(superficies.keys()))
+z_func = superficies[tipo]["func"]
+latex_eq = superficies[tipo]["latex"]
+st.latex(latex_eq)
 
-# --- Mostrar función seleccionada en LaTeX ---
-st.latex(latex)
+# --- Crear malla para graficar ---
+x_range = np.linspace(-5, 5, 100)
+y_range = np.linspace(-5, 5, 100)
+X, Y = np.meshgrid(x_range, y_range)
+Z = z_func(X, Y)
 
-# --- Parámetros de la suma de Riemann ---
-a = st.number_input("🔹 Límite inferior (a)", value=0.0)
-b = st.number_input("🔹 Límite superior (b)", value=5.0)
-n = st.slider("🔸 Número de subintervalos (n)", 1, 100, 10)
-tipo = st.radio("📏 Tipo de suma de Riemann", ("Izquierda", "Derecha", "Punto medio"))
+# --- Superficie 3D ---
+fig = go.Figure()
 
-# --- Cálculo de la suma de Riemann ---
-dx = (b - a) / n
-x = np.linspace(a, b, 1000)
-y = f(x)
+# Superficie
+fig.add_trace(go.Surface(
+    z=Z, x=X, y=Y,
+    colorscale="Viridis",
+    opacity=0.8,
+    name="Superficie"
+))
 
-if tipo == "Izquierda":
-    x_rect = np.linspace(a, b - dx, n)
-    heights = f(x_rect)
-elif tipo == "Derecha":
-    x_rect = np.linspace(a + dx, b, n)
-    heights = f(x_rect)
-else:  # Punto medio
-    x_rect = np.linspace(a + dx/2, b - dx/2, n)
-    heights = f(x_rect)
+# Curvas de nivel (cortes horizontales)
+fig.add_trace(go.Surface(
+    z=Z, x=X, y=Y,
+    showscale=False,
+    colorscale="Greys",
+    opacity=0.3,
+    contours={"z": {"show": True, "start": np.min(Z), "end": np.max(Z), "size": 0.5, "color":"black"}}
+))
 
-areas = heights * dx
-area_total = np.sum(areas)
+# --- Ajustes de gráfico ---
+fig.update_layout(
+    width=1000,
+    height=700,
+    title=f"Superficie: {tipo}",
+    scene=dict(
+        xaxis_title="x",
+        yaxis_title="y",
+        zaxis_title="z"
+    )
+)
 
-# --- Gráfica ---
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.plot(x, y, label=latex, color='blue')
-
-for xi, hi in zip(x_rect, heights):
-    x_base = xi - (0 if tipo == 'Izquierda' else dx if tipo == 'Derecha' else dx/2)
-    ax.add_patch(plt.Rectangle((x_base, 0), dx, hi, alpha=0.4, color='orange'))
-
-ax.set_title(f"Suma de Riemann ({tipo.lower()}) con n = {n}")
-ax.set_xlabel("x")
-ax.set_ylabel("f(x)")
-ax.legend()
-ax.grid(True)
-st.pyplot(fig)
-
-# --- Resultado ---
-st.subheader("📊 Resultado")
-st.latex(r"\text{Área aproximada} = " + f"{area_total:.6f}")
+# --- Mostrar figura ---
+st.plotly_chart(fig, use_container_width=False)
