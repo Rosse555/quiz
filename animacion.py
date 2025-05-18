@@ -4,9 +4,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 st.set_page_config(layout="wide")
-st.title("🧠 Visualización de Superficies Cuádricas con Cortes en Plotly")
+st.title("🧠 Visualización de Superficies Cuádricas con Cortes Dinámicos")
 
-# --- Definir superficies cuádricas ---
+# --- Definición de superficies cuádricas ---
 superficies = {
     "Paraboloide elíptico": {
         "func": lambda x, y: x**2 + y**2,
@@ -40,21 +40,18 @@ plano = st.radio("📏 Plano para visualizar curva de nivel", ["z = 0", "x = 0",
 st.latex(superficies[tipo]["latex"])
 f = superficies[tipo]["func"]
 
-# --- Deslizadores dinámicos ---
-if plano == "z = 0":
-    z_val = st.slider("🔹 Valor de z", -10.0, 10.0, 0.0)
-elif plano == "x = 0":
-    x_val = st.slider("🔹 Valor de x", -10.0, 10.0, 0.0)
-elif plano == "y = 0":
-    y_val = st.slider("🔹 Valor de y", -10.0, 10.0, 0.0)
+# --- Deslizadores según plano seleccionado ---
+x_val = st.slider("🔹 Valor de x", -10.0, 10.0, 0.0) if plano == "x = 0" else None
+y_val = st.slider("🔹 Valor de y", -10.0, 10.0, 0.0) if plano == "y = 0" else None
+z_val = st.slider("🔹 Valor de z", -10.0, 10.0, 0.0) if plano == "z = 0" else None
 
-# --- Construcción de malla ---
+# --- Malla de puntos ---
 x_vals = np.linspace(-5, 5, 100)
 y_vals = np.linspace(-5, 5, 100)
 X, Y = np.meshgrid(x_vals, y_vals)
 Z = f(X, Y)
 
-# --- Subgráficas (1: 3D, 2: corte 2D) ---
+# --- Subgráficas: superficie 3D y curva 2D ---
 fig = make_subplots(
     rows=1, cols=2,
     specs=[[{"type": "surface"}, {"type": "xy"}]],
@@ -62,14 +59,14 @@ fig = make_subplots(
     subplot_titles=("Superficie 3D", f"Corte en plano {plano}")
 )
 
-# --- Superficie 3D ---
+# --- Superficie 3D principal ---
 fig.add_trace(
     go.Surface(z=Z, x=X, y=Y, colorscale="Viridis", showscale=True, name="Superficie"),
     row=1, col=1
 )
 
-# --- Corte en 3D y gráfica 2D ---
-if plano == "x = 0":
+# --- Visualización del corte según el plano seleccionado ---
+if plano == "x = 0" and x_val is not None:
     y_cut = y_vals
     z_cut = f(x_val, y_cut)
     fig.add_trace(go.Scatter3d(
@@ -83,7 +80,7 @@ if plano == "x = 0":
     fig.update_xaxes(title="y", row=1, col=2)
     fig.update_yaxes(title="z", row=1, col=2)
 
-elif plano == "y = 0":
+elif plano == "y = 0" and y_val is not None:
     x_cut = x_vals
     z_cut = f(x_cut, y_val)
     fig.add_trace(go.Scatter3d(
@@ -97,7 +94,7 @@ elif plano == "y = 0":
     fig.update_xaxes(title="x", row=1, col=2)
     fig.update_yaxes(title="z", row=1, col=2)
 
-elif plano == "z = 0":
+elif plano == "z = 0" and z_val is not None:
     fig.add_trace(go.Surface(
         z=Z, x=X, y=Y,
         showscale=False,
@@ -105,7 +102,6 @@ elif plano == "z = 0":
         opacity=0.3,
         contours={"z": {"show": True, "start": z_val, "end": z_val, "size": 0.5}}
     ), row=1, col=1)
-
     fig.add_trace(go.Contour(
         x=x_vals, y=y_vals, z=Z,
         contours=dict(start=z_val, end=z_val, size=0.5, coloring="lines"),
@@ -123,4 +119,5 @@ fig.update_layout(
     scene=dict(xaxis_title="x", yaxis_title="y", zaxis_title="z"),
 )
 
+# --- Mostrar gráfico en Streamlit ---
 st.plotly_chart(fig, use_container_width=False)
