@@ -83,7 +83,19 @@ fig.update_layout(
     title=f"Iteración: {st.session_state.iter}",
     width=1000,
     height=700,
-    scene=dict(xaxis_title='x', yaxis_title='y', zaxis_title='f(x, y)')
+    scene=dict(
+        xaxis_title='x',
+        yaxis_title='y',
+        zaxis_title='f(x, y)'
+    ),
+    legend=dict(
+        x=0.8,  # horizontal (0 a 1)
+        y=0.95, # vertical (0 a 1)
+        bgcolor='rgba(255,255,255,0.7)',
+        bordercolor='black',
+        borderwidth=1
+    )
+)
 )
 
 # --- Mostrar gráfica ---
